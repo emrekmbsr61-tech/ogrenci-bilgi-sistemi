@@ -1,0 +1,121 @@
+﻿@model List<OgrBilgiSistemi.Models.DersKayitlari>
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transkript</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>Not Dökümü (Transkript)</h3>
+            <a href="/Ogrenci/Index" class="btn btn-secondary">Öğrenci Paneline Dön</a>
+        </div>
+
+        <div class="card shadow">
+            <div class="card-body">
+                <table class="table table-hover table-bordered text-center align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="text-start">Ders Adı</th>
+                            <th>Dönem</th>
+                            <th>Kredi</th>
+                            <th>Vize</th>
+                            <th>Final</th>
+                            <th>Büt</th>
+                            <th>Ortalama</th>
+                            <th>Harf</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="9" class="text-center text-muted p-4">
+                                    Henüz not girişi yapılmış bir dersiniz yok.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            // Dersleri döneme göre gruplayıp sıraladım.
+                            foreach (var kayit in Model.OrderBy(k => k.Ders.Donem))
+                            {
+                                // Satır Rengi: Kaldıysa Kırmızı, Geçtiyse Yeşil, Açıklanmadıysa Beyaz
+                                string satirRengi = "";
+                                if (kayit.Durum == "Kaldı") satirRengi = "table-danger";
+                                else if (kayit.Durum == "Geçti") satirRengi = "table-success";
+
+                                <tr class="@satirRengi">
+                                    <td class="text-start fw-bold">@kayit.Ders.DersAdi</td>
+                                    <td>@kayit.Ders.Donem . Dönem</td>
+                                    <td>@kayit.Ders.Kredi</td>
+
+                                    <td>@(kayit.VizeNotu?.ToString() ?? "-")</td>
+
+                                    <td>
+                                        @if (kayit.ButNotu != null)
+                                        {
+                                            <span class="text-decoration-line-through text-muted">@kayit.FinalNotu</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@(kayit.FinalNotu?.ToString() ?? "-")</span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @if (kayit.ButNotu != null)
+                                        {
+                                            <span class="fw-bold text-danger">@kayit.ButNotu</span>
+                                        }
+                                        else
+                                        {
+                                            <span>-</span>
+                                        }
+                                    </td>
+
+                                    <td class="fw-bold">@(kayit.Ortalama?.ToString() ?? "-")</td>
+
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            @(kayit.HarfNotu ?? "--")
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        @if (kayit.Durum == "Geçti")
+                                        {
+                                            <strong>Geçti</strong>
+                                        }
+                                        else if (kayit.Durum == "Kaldı")
+                                        {
+
+                                            <strong>Kaldı</strong>
+                                        }
+                                        else
+                                        {
+
+                                            <span class="text-muted">Devam</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-3">
+            <i class="bi bi-info-circle"></i>
+            <strong>Bilgi:</strong> Bütünleme sınavına girdiyseniz, sistem otomatik olarak Final notunuzu geçersiz sayar ve ortalamayı
+            <code>(Vize %40) + (Büt %60)</code> formülüyle hesaplar.
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,177 @@
+﻿@using OgrBilgiSistemi.Models
+@inject OgrBilgiSistemi.Models.OgrBilgiSistemiDbContext _context
+@model List<DersSecimViewModel>
+@*  Model artık Dersler değil, DersSecimViewModel oldu *@
+
+@{
+    Layout = null;
+    var ogrenci = (Ogrenciler)ViewBag.Ogrenci;
+
+    // Kredi Hesaplamaları
+    int suAnkiKredi = ViewBag.SuAnkiKredi != null ? (int)ViewBag.SuAnkiKredi : 0;
+    int limit = ogrenci.KrediLimiti ?? 30;
+    int kalanKredi = limit - suAnkiKredi;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ders Seçimi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .form-check-input:checked {
+            background-color: #198754;
+            border-color: #198754;
+        }
+        /* Geçilmiş dersler için gri arka plan yaptım*/
+        .satir-pasif {
+            background-color: #e9ecef !important;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-4">
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 class="mb-0">🎓 Ders Seçimi</h3>
+                    <small class="text-muted">@ogrenci.Kullanici?.Ad @ogrenci.Kullanici?.Soyad - @ogrenci.Bolum</small>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-primary fs-6 p-2">Limit: @limit</span>
+                    <span class="badge bg-warning text-dark fs-6 p-2">Dolu: @suAnkiKredi</span>
+                    <span class="badge @(kalanKredi < 0 ? "bg-danger" : "bg-success") fs-6 p-2">
+                        Kalan: @kalanKredi
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        @if (TempData["Hata"] != null)
+        {
+            <div class="alert alert-danger shadow-sm">@TempData["Hata"]</div>
+        }
+        @if (TempData["Mesaj"] != null)
+        {
+            <div class="alert alert-success shadow-sm">@TempData["Mesaj"]</div>
+        }
+
+        <a href="/Ogrenci/Index" class="btn btn-secondary mb-3">⬅ Geri Dön</a>
+
+        <form method="post" action="/Ogrenci/DersSecimi">
+            <div class="table-responsive shadow">
+                <table class="table table-bordered table-hover mb-0 bg-white">
+                    <thead class="table-dark text-center">
+                        <tr>
+                            <th style="width: 60px;">Seç</th>
+                            <th>Ders Adı</th>
+                            <th style="width: 80px;">Dönem</th>
+                            <th style="width: 80px;">AKTS</th>
+                            <th style="width: 80px;">Harf</th>
+                            <th style="width: 100px;">Kota</th>
+                            <th>Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var ders in Model)
+                        {
+                            // KOTA KONTROLÜ
+                            int dolu = _context.DersKayitlaris.Count(k => k.DersId == ders.DersId);
+                            int kapasite = 50;
+                            var gercekDers = _context.Derslers.Find(ders.DersId);
+                            if (gercekDers != null) { kapasite = gercekDers.Kontenjan ?? 50; }
+                            bool kotaDoldu = dolu >= kapasite;
+
+                            // A) SQL'DEN GELEN "ZATEN SEÇİLİ Mİ?" BİLGİSİ
+                            bool zatenSecili = (ders.ZatenSecili == 1); // 1 ise tikli gelecek
+
+                            // B) GEÇMİŞ DERS KONTROLÜ
+                            bool gecmisDers = (ders.SecilebilirMi == 0);
+
+                            // C) SATIR RENGİ VE MESAJ
+                            string satirClass = "";
+                            string mesaj = ders.Statu;
+                            bool checkboxAktif = true;
+
+                            if (gecmisDers) // Geçtiği dersler
+                            {
+                                satirClass = "satir-pasif";
+                                checkboxAktif = false;
+                                mesaj = "✅ " + mesaj;
+                            }
+                            else if (zatenSecili) // Şu an aldığı dersler
+                            {
+                                satirClass = "table-success";
+                                mesaj = "🟦 Seçili";
+                            }
+                            else if (kotaDoldu)
+                            {
+                                satirClass = "table-danger";
+                                mesaj = "⛔ Kota Dolu";
+                                checkboxAktif = false;
+                            }
+                            else if (mesaj.Contains("Zorunlu"))
+                            {
+                                satirClass = "table-warning";
+                            }
+
+                            <tr class="@satirClass align-middle">
+                                <td class="text-center">
+                                    <div class="form-check d-flex justify-content-center">
+                                        @if (checkboxAktif)
+                                        {
+                                            <input class="form-check-input border-dark"
+                                                   type="checkbox"
+                                                   name="secilenDersler"
+                                                   value="@ders.DersId"
+                                                   style="transform: scale(1.3); cursor: pointer;"
+                                                   @(zatenSecili ? "checked" : "") />
+                                        }
+                                        else
+                                        {
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   disabled
+                                                   @(gecmisDers ? "checked" : "") />
+                                        }
+                                    </div>
+                                </td>
+                                <td class="fw-bold">@ders.DersAdi</td>
+                                <td class="text-center">@ders.Donem</td>
+                                <td class="text-center">@ders.Akts</td>
+                                <td class="text-center fw-bold">
+                                    @if (ders.HarfNotu != "--")
+                                    {
+                                        <span class="badge @(ders.HarfNotu == "FF" ? "bg-danger" : "bg-success")">@ders.HarfNotu</span>
+                                    }
+                                    else
+                                    {
+                                        <span>--</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge @(kotaDoldu ? "bg-danger" : "bg-success")">
+                                        @dolu / @kapasite
+                                    </span>
+                                </td>
+                                <td class="small">@mesaj</td>
+                            </tr>
+                        }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-grid gap-2 mt-3">
+                <button type="submit" class="btn btn-primary btn-lg shadow">
+                    💾 Değişiklikleri Kaydet
+                </button>
+            </div>
+        </form>
+
+        <br /><br />
+    </div>
+</body>
+</html>
